@@ -1007,7 +1007,8 @@ async function submitTask() {
 
   const prioMap    = { alta:'4', media:'3', baixa:'2', normal:'1' };
   const prioValue  = prioMap[normPrio(t.priority)] || '1';
-  const taskDateFmt = new Date(data).toISOString().slice(0, 19);
+  // Usa o horário exatamente como digitado (datetime-local já é local), sem converter para UTC
+  const taskDateFmt = data.length === 16 ? data + ':00' : data.slice(0, 19);
 
   const orientacaoParts = [];
   if (titulo)     orientacaoParts.push(titulo);
@@ -1016,11 +1017,16 @@ async function submitTask() {
 
   const payload = {
     idUserTo:    parseInt(colaborador),
+    idUserFrom:  parseInt(colaborador), // Auvo exige — usa o mesmo colaborador como fallback
     taskType:    parseInt(tipo),
     taskDate:    taskDateFmt,
     orientation: orientacaoParts.join('\n\n'),
-    priority:    prioValue,
-    ticketId:    t.id,   // campo oficial do Auvo para vínculo tarefa↔ticket
+    priority:    parseInt(prioValue),
+    // Localização obrigatória — usa coordenadas do cliente ou valor padrão
+    latitude:    t.customerLatitude  || 0,
+    longitude:   t.customerLongitude || 0,
+    address:     t.customerAddress   || t.customerName || '',
+    ticketId:    t.id,
   };
   if (t.customerId) payload.customerId = parseInt(t.customerId);
 
