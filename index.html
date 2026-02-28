@@ -810,14 +810,13 @@ function renderAll(open, closedQty) { updateStats(open,closedQty); showStats(); 
 
 function updateStats(tickets, closedQty) {
   const c=p=>tickets.filter(t=>normPrio(t.priority)===p).length;
-  document.getElementById('stat-alta').textContent  =c('alta');
-  document.getElementById('stat-media').textContent =c('media');
-  document.getElementById('stat-baixa').textContent =c('baixa');
-  document.getElementById('stat-total').textContent =tickets.length;
-  document.getElementById('stat-closed').textContent=closedQty;
+  const s=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  s('stat-alta',c('alta')); s('stat-media',c('media')); s('stat-baixa',c('baixa'));
+  s('stat-total',tickets.length); s('stat-closed',closedQty);
   const note=document.getElementById('status-note');
-  document.getElementById('status-note-text').textContent=`Exibindo ${tickets.length} ticket(s) em aberto. ${closedQty} finalizado(s) ocultos.`;
-  note.style.display='flex';
+  const noteText=document.getElementById('status-note-text');
+  if(noteText) noteText.textContent='Exibindo '+tickets.length+' ticket(s) em aberto. '+closedQty+' finalizado(s) ocultos.';
+  if(note) note.style.display='flex';
 }
 function showStats() { document.getElementById('stats-bar').classList.add('visible'); document.getElementById('filter-bar').classList.add('visible'); }
 
