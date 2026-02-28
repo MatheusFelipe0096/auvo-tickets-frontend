@@ -669,7 +669,7 @@ function populateUsersSelect(users) {
   const sorted = [...users].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
   sorted.forEach(u => {
     const opt   = document.createElement('option');
-    opt.value   = u.userId || u.collaboratorId || u.id || '';
+    opt.value   = u.userID || u.userId || u.collaboratorId || u.id || '';
     const cargo = u.jobPosition ? ` (${u.jobPosition})` : '';
     opt.textContent = (u.name || `Colaborador #${opt.value}`) + cargo;
     sel.appendChild(opt); // insere mesmo sem value para debug
