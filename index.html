@@ -902,7 +902,7 @@ function openModal(t) {
         <div class="info-item"><div class="info-key">TIPO DE SOLICITAÇÃO</div><div class="info-val">${t.requestTypeDescription||'—'}</div></div>
         <div class="info-item"><div class="info-key">CLIENTE</div><div class="info-val">${t.customerName||'—'}</div></div>
         <div class="info-item"><div class="info-key">RESPONSÁVEL</div><div class="info-val">${t.userResponsableName||'—'}</div></div>
-        <div class="info-item"><div class="info-key">CRIADO POR</div><div class="info-val">${t.userCreatorName||'—'}</div></div>
+
         ${t.teamName?`<div class="info-item"><div class="info-key">EQUIPE</div><div class="info-val">${t.teamName}</div></div>`:''}
         ${t.taskIDs?.length?`<div class="info-item"><div class="info-key">TASKS VINCULADAS</div><div class="info-val">${t.taskIDs.join(', ')}</div></div>`:''}
       </div>
@@ -911,7 +911,7 @@ function openModal(t) {
       <div class="section-label">📅 Datas</div>
       <div class="dates-grid">
         <div class="date-card"><div class="date-icon">📝</div><div class="date-label">Criação</div><div class="date-value">${fmtDate(t.creationDate)}</div><div class="date-time">${t.creationDate?new Date(t.creationDate).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}</div></div>
-        <div class="date-card"><div class="date-icon">📅</div><div class="date-label">Encerramento Prev.</div><div class="date-value">${fmtDate(t.endDate)}</div><div class="date-time">${t.endDate?new Date(t.endDate).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—'}</div></div>
+        <div class="date-card"><div class="date-icon">📅</div><div class="date-label">Encerramento Prev.</div><div class="date-value">${t.endDate?fmtDate(t.endDate):'00/00/0000'}</div><div class="date-time">${t.endDate?new Date(t.endDate).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'00:00'}</div></div>
         <div class="date-card"><div class="date-icon">⏱</div><div class="date-label">Tempo em Aberto</div><div class="date-value">${calcDaysOpen(t.creationDate,null)}</div><div class="date-time">dias</div></div>
       </div>
     </div>
@@ -960,15 +960,23 @@ function openTaskModal() {
   document.getElementById('task-titulo').value               = t.title||'';
   document.getElementById('task-descricao').value            = t.description||'';
 
-  const suggested = new Date(); suggested.setHours(suggested.getHours()+1);
-  document.getElementById('task-data').value = suggested.toISOString().slice(0,16);
+  const now = new Date();
+  // Ajusta para o fuso local da máquina do cliente
+  const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+  document.getElementById('task-data').value = localISO;
 
   const priBox = document.getElementById('prio-inherited-box');
   priBox.className = `prio-inherited prio-${prio}`;
   document.getElementById('prio-inherited-label').textContent = prioLabel(t.priority);
 
   loadUsers();
-  loadTaskTypes();
+  loadTaskTypes().then(() => {
+    // Ajuste 5: pré-selecionar tipo de ocorrência baseado no ticket
+    if (t.requestTypeId) {
+      const sel = document.getElementById('task-tipo');
+      if (sel) sel.value = String(t.requestTypeId);
+    }
+  });
 
   document.getElementById('task-modal-overlay').classList.add('open');
 }
@@ -1001,8 +1009,10 @@ async function submitTask() {
   const prioValue  = prioMap[normPrio(t.priority)] || '1';
   const taskDateFmt = new Date(data).toISOString().slice(0, 19);
 
+  const tituloComTicket = `[Ticket #${t.id}] ${titulo}`;
+
   const orientacaoParts = [];
-  if (titulo)     orientacaoParts.push(titulo);
+  if (titulo)     orientacaoParts.push(`Ref. Ticket #${t.id}: ${titulo}`);
   if (descricao)  orientacaoParts.push(descricao);
   if (orientacao) orientacaoParts.push('Orientação: ' + orientacao);
 
@@ -1010,6 +1020,7 @@ async function submitTask() {
     idUserTo:    parseInt(colaborador),
     taskType:    parseInt(tipo),
     taskDate:    taskDateFmt,
+    title:       tituloComTicket,
     orientation: orientacaoParts.join('\n\n'),
     priority:    prioValue,
     ticketId:    t.id,
