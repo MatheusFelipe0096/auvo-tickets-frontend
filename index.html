@@ -1009,10 +1009,8 @@ async function submitTask() {
   const prioValue  = prioMap[normPrio(t.priority)] || '1';
   const taskDateFmt = new Date(data).toISOString().slice(0, 19);
 
-  const tituloComTicket = `[Ticket #${t.id}] ${titulo}`;
-
   const orientacaoParts = [];
-  if (titulo)     orientacaoParts.push(`Ref. Ticket #${t.id}: ${titulo}`);
+  if (titulo)     orientacaoParts.push(titulo);
   if (descricao)  orientacaoParts.push(descricao);
   if (orientacao) orientacaoParts.push('Orientação: ' + orientacao);
 
@@ -1020,10 +1018,9 @@ async function submitTask() {
     idUserTo:    parseInt(colaborador),
     taskType:    parseInt(tipo),
     taskDate:    taskDateFmt,
-    title:       tituloComTicket,
     orientation: orientacaoParts.join('\n\n'),
     priority:    prioValue,
-    ticketId:    t.id,
+    ticketId:    t.id,   // campo oficial do Auvo para vínculo tarefa↔ticket
   };
   if (t.customerId) payload.customerId = parseInt(t.customerId);
 
