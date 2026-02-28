@@ -1062,7 +1062,7 @@ function setLoading(on) {
   if(on) document.getElementById('tickets-container').innerHTML=`<div class="state-box"><div class="spinner"></div><p>Buscando tickets na API do Auvo...</p></div>`;
 }
 function showError(msg){const b=document.getElementById('error-box');b.textContent='❌ '+msg;b.style.display='block';}
-function hideError(){document.getElementById('error-box').style.display='none';document.getElementById('cors-warning').style.display='none';}
+function hideError(){const e=document.getElementById('error-box');if(e)e.style.display='none';const c=document.getElementById('cors-warning');if(c)c.style.display='none';}
 function handleFetchError(err){
   console.error(err);
   showError(err.message);
