@@ -644,6 +644,7 @@ async function loadUsers(silent = false) {
     const list = data?.result?.entityList || [];
     if (list.length === 0) throw new Error('Nenhum colaborador retornado. Veja os logs do servidor.');
 
+    console.log('[Frontend] Exemplo colaborador:', JSON.stringify(list[0]));
     cachedUsers = list.filter(u => u.active !== false && !u.unavailableForTasks);
     if (cachedUsers.length === 0) cachedUsers = list;
 
@@ -671,7 +672,7 @@ function populateUsersSelect(users) {
     opt.value   = u.userId || u.collaboratorId || u.id || '';
     const cargo = u.jobPosition ? ` (${u.jobPosition})` : '';
     opt.textContent = (u.name || `Colaborador #${opt.value}`) + cargo;
-    if (opt.value) sel.appendChild(opt);
+    sel.appendChild(opt); // insere mesmo sem value para debug
   });
   sel.disabled = false;
   hint.textContent = `${users.length} colaboradores`;
@@ -730,7 +731,7 @@ function populateTaskTypesSelect(types) {
     const opt = document.createElement('option');
     opt.value = tp.taskTypeId || tp.id || tp.taskTypeID || '';
     opt.textContent = tp.taskTypeDescription || tp.description || tp.name || `Tipo #${opt.value}`;
-    if (opt.value) sel.appendChild(opt);
+    sel.appendChild(opt); // insere mesmo sem value para debug
   });
   sel.disabled = false;
   hint.textContent = `${types.length} tipos`;
