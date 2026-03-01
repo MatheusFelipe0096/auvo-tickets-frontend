@@ -404,7 +404,6 @@
   </div>
 </div>
 
-
 <!-- ══ MODAL DETALHE TAREFA ══ -->
 <div class="modal-overlay" id="task-detail-overlay" onclick="if(event.target===this)closeTaskDetail()" style="z-index:3000;">
   <div class="modal" id="task-detail-modal" style="max-width:620px;">
@@ -416,9 +415,7 @@
       <div class="modal-title" id="td-title" style="font-size:.82rem;color:var(--text-muted);"></div>
     </div>
     <div class="modal-body" id="td-body">
-      <div style="display:flex;align-items:center;justify-content:center;padding:3rem;">
-        <div class="spinner"></div>
-      </div>
+      <div style="display:flex;align-items:center;justify-content:center;padding:3rem;"><div class="spinner"></div></div>
     </div>
   </div>
 </div>
@@ -514,7 +511,7 @@ let currentTicket = null;
 let currentView   = 'grid';
 // taskIDs criadas localmente nesta sessão { ticketId → [taskId,...] }
 let localTaskMap  = {};
-let localTaskColaborador = {}; // { taskId → nomeColaborador }
+let localTaskColaborador = {};
 let cachedUsers     = null;
 let cachedTaskTypes = null;
 
@@ -571,7 +568,7 @@ function populateUsersSelect(users) {
   sel.disabled=false; hint.textContent=`${users.length} colaboradores`;
   sel.onchange=function(){
     const nome=this.options[this.selectedIndex]?.text||'';
-    const nomeDisp=nome==='Selecione um colaborador'?'':nome;
+    const nomeDisp=(nome==='Selecione um colaborador'||!this.value)?'':nome;
     const av=document.getElementById('task-colab-avatar');
     const nm=document.getElementById('task-colab-nome');
     if(av&&nm){
@@ -710,12 +707,12 @@ function taskBadgesHTML(t,cls='task-badge'){
   if(!ids.length)return'';
   return ids.map(id=>{
     const nome=localTaskColaborador[id]||'';
-    const colab=nome?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:3px;">👤 ${nome}</span>`:'';
-    return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="${cls}" onclick="showTaskInfo(${id})"># ${id}</span>${colab}</span>`;
+    const colab=nome?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:3px;">\u{1F464} ${nome}</span>`:'';
+    return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="${cls}" onclick="showTaskInfo(${id},event)"># ${id}</span>${colab}</span>`;
   }).join('');
 }
-async function showTaskInfo(taskId){
-  event.stopPropagation();
+async function showTaskInfo(taskId,evt){
+  if(evt)evt.stopPropagation();
   const overlay=document.getElementById('task-detail-overlay');
   const body=document.getElementById('td-body');
   const idEl=document.getElementById('td-id');
@@ -731,7 +728,7 @@ async function showTaskInfo(taskId){
     if(!res.ok)throw new Error(data.error||`Erro ${res.status}`);
     const tk=data?.result||data;
     titleEl.textContent=tk.taskTypeDescription||'Tarefa';
-    const statusLabel=tk.finished?'✅ Concluída': tk.checkIn&&!tk.checkOut?'🔄 Em andamento':'⏳ Pendente';
+    const statusLabel=tk.finished?'✅ Concluída':tk.checkIn&&!tk.checkOut?'🔄 Em andamento':'⏳ Pendente';
     const prioMap={'1':'Baixa','2':'Média','3':'Alta'};
     const prioVal=prioMap[String(tk.priority)]||tk.priority||'—';
     body.innerHTML=`
@@ -755,8 +752,7 @@ async function showTaskInfo(taskId){
         </div>
       </div>
       ${tk.address?`<div class="modal-section"><div class="section-label">📍 Endereço</div><div class="desc-box">${tk.address}</div></div>`:''}
-      ${tk.orientation?`<div class="modal-section"><div class="section-label">📋 Orientação</div><div class="desc-box" style="max-height:160px;">${tk.orientation.replace(/
-/g,'<br>')}</div></div>`:''}
+      ${tk.orientation?`<div class="modal-section"><div class="section-label">📋 Orientação</div><div class="desc-box" style="max-height:160px;">${tk.orientation.replace(/\n/g,'<br>')}</div></div>`:''}
       ${tk.report?`<div class="modal-section"><div class="section-label">📄 Relatório</div><div class="desc-box">${tk.report}</div></div>`:''}
       ${tk.taskUrl?`<div class="modal-section"><a href="${tk.taskUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:700;color:var(--brand);text-decoration:none;">🔗 Abrir tarefa no Auvo</a></div>`:''}
     `;
@@ -844,7 +840,7 @@ function renderList(tickets,container){
       <td><span class="status-chip">${t.statusDescription||'—'}</span></td>
       <td class="table-date">${fmtDate(t.creationDate)}</td>
       <td class="table-date">${t.endDate?fmtDate(t.endDate):'00/00/0000'}</td>
-      <td><div class="table-tasks" onclick="event.stopPropagation()">${ids.map(id=>{const n=localTaskColaborador[id]||'';const c=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">👤 ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="showTaskInfo(${id})">#${id}</span>${c}</span>`;}).join('')||'<span style="color:var(--text-muted);font-size:.7rem;">—</span>'}</div></td>`;
+      <td><div class="table-tasks" onclick="event.stopPropagation()">${ids.map(id=>{const n=localTaskColaborador[id]||'';const col=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">\u{1F464} ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="showTaskInfo(${id},event)">#${id}</span>${col}</span>`;}).join('')||'<span style="color:var(--text-muted);font-size:.7rem;">—</span>'}</div></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -876,7 +872,7 @@ function renderKanban(tickets,container){
       card.innerHTML=`
         <div class="kcard-id">#${t.id} <span style="font-weight:500;color:var(--text-muted);font-size:.66rem;">${t.customerName||''}</span></div>
         <div class="kcard-title">${t.title||'Sem título'}</div>
-        ${ids.length?`<div class="kcard-tasks" onclick="event.stopPropagation()">${ids.map(id=>{const n=localTaskColaborador[id]||'';const c=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">👤 ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="showTaskInfo(${id})">#${id}</span>${c}</span>`;}).join('')}</div>`:''}
+        ${ids.length?`<div class="kcard-tasks" onclick="event.stopPropagation()">${ids.map(id=>{const n=localTaskColaborador[id]||'';const col=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">\u{1F464} ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="showTaskInfo(${id},event)">#${id}</span>${col}</span>`;}).join('')}</div>`:''}
         <div class="kcard-footer">
           <div class="kcard-assignee"><div class="kcard-av">${initials(t.userResponsableName)}</div>${t.userResponsableName||'—'}</div>
           <span class="kcard-date">${fmtDate(t.creationDate)}</span>
@@ -1063,7 +1059,7 @@ function updateCardTasks(ticketId){
     const isKanban=card.classList.contains('kanban-card');
     const tasksCls=isKanban?'kcard-tasks':'card-tasks';
     let tasksDiv=card.querySelector(`.${tasksCls}`);
-    const badgeHtml=ids.map(id=>{const n=localTaskColaborador[id]||'';const c=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">👤 ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="event.stopPropagation();showTaskInfo(${id})"># ${id}</span>${c}</span>`;}).join('');
+    const badgeHtml=ids.map(id=>{const n=localTaskColaborador[id]||'';const col=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">\u{1F464} ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="showTaskInfo(${id},event)"># ${id}</span>${col}</span>`;}).join('');
     if(tasksDiv){tasksDiv.innerHTML=badgeHtml;}
     else{
       const footer=card.querySelector('.card-footer,.kcard-footer');
@@ -1072,7 +1068,7 @@ function updateCardTasks(ticketId){
   });
   // Table row
   const tr=document.querySelector(`tr[data-ticket-id="${ticketId}"]`);
-  if(tr){const td=tr.querySelector('.table-tasks');if(td)td.innerHTML=ids.map(id=>{const n=localTaskColaborador[id]||'';const c=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">👤 ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="event.stopPropagation();showTaskInfo(${id})">#${id}</span>${c}</span>`;}).join('');}
+  if(tr){const td=tr.querySelector('.table-tasks');if(td)td.innerHTML=ids.map(id=>{const n=localTaskColaborador[id]||'';const col=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">\u{1F464} ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="showTaskInfo(${id},event)">#${id}</span>${col}</span>`;}).join('');}
 }
 
 // ══ HELPERS UI ══
