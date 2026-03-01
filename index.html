@@ -404,6 +404,25 @@
   </div>
 </div>
 
+
+<!-- ══ MODAL DETALHE TAREFA ══ -->
+<div class="modal-overlay" id="task-detail-overlay" onclick="if(event.target===this)closeTaskDetail()" style="z-index:3000;">
+  <div class="modal" id="task-detail-modal" style="max-width:620px;">
+    <div class="modal-header">
+      <div class="modal-top">
+        <div class="modal-id" id="td-id"><small>TAREFA</small>#—</div>
+        <button class="modal-close" onclick="closeTaskDetail()">✕</button>
+      </div>
+      <div class="modal-title" id="td-title" style="font-size:.82rem;color:var(--text-muted);"></div>
+    </div>
+    <div class="modal-body" id="td-body">
+      <div style="display:flex;align-items:center;justify-content:center;padding:3rem;">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL CRIAR TAREFA ══ -->
 <div class="task-modal-overlay" id="task-modal-overlay" onclick="closeTaskModal(event)">
   <div class="task-modal" id="task-modal">
@@ -695,7 +714,60 @@ function taskBadgesHTML(t,cls='task-badge'){
     return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="${cls}" onclick="showTaskInfo(${id})"># ${id}</span>${colab}</span>`;
   }).join('');
 }
-function showTaskInfo(taskId){showToast(`Tarefa #${taskId}`, 'info');}
+async function showTaskInfo(taskId){
+  event.stopPropagation();
+  const overlay=document.getElementById('task-detail-overlay');
+  const body=document.getElementById('td-body');
+  const idEl=document.getElementById('td-id');
+  const titleEl=document.getElementById('td-title');
+  idEl.innerHTML=`<small>TAREFA</small>#${taskId}`;
+  titleEl.textContent='';
+  body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;padding:3rem;"><div class="spinner"></div></div>`;
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  try {
+    const res=await fetch(`${BASE_API}/api/tasks/${taskId}`);
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||`Erro ${res.status}`);
+    const tk=data?.result||data;
+    titleEl.textContent=tk.taskTypeDescription||'Tarefa';
+    const statusLabel=tk.finished?'✅ Concluída': tk.checkIn&&!tk.checkOut?'🔄 Em andamento':'⏳ Pendente';
+    const prioMap={'1':'Baixa','2':'Média','3':'Alta'};
+    const prioVal=prioMap[String(tk.priority)]||tk.priority||'—';
+    body.innerHTML=`
+      <div class="modal-section">
+        <div class="section-label">Informações Gerais</div>
+        <div class="info-grid">
+          <div class="info-item"><div class="info-key">STATUS</div><div class="info-val highlight">${statusLabel}</div></div>
+          <div class="info-item"><div class="info-key">PRIORIDADE</div><div class="info-val">${prioVal}</div></div>
+          <div class="info-item"><div class="info-key">TIPO DE TAREFA</div><div class="info-val">${tk.taskTypeDescription||'—'}</div></div>
+          <div class="info-item"><div class="info-key">CLIENTE</div><div class="info-val">${tk.customerDescription||'—'}</div></div>
+          <div class="info-item"><div class="info-key">COLABORADOR RESPONSÁVEL</div><div class="info-val">${tk.userToName||localTaskColaborador[taskId]||'—'}</div></div>
+          <div class="info-item"><div class="info-key">CRIADO POR</div><div class="info-val">${tk.userFromName||'—'}</div></div>
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="section-label">📅 Datas</div>
+        <div class="dates-grid">
+          <div class="date-card"><div class="date-icon">📝</div><div class="date-label">Criação</div><div class="date-value">${fmtDate(tk.creationDate)}</div><div class="date-time">${tk.creationDate?new Date(tk.creationDate).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}</div></div>
+          <div class="date-card"><div class="date-icon">📅</div><div class="date-label">Agendada</div><div class="date-value">${fmtDate(tk.taskDate)}</div><div class="date-time">${tk.taskDate?new Date(tk.taskDate).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}</div></div>
+          <div class="date-card"><div class="date-icon">📍</div><div class="date-label">Check-in</div><div class="date-value">${tk.checkIn?fmtDate(tk.checkInDate):'—'}</div><div class="date-time">${tk.checkIn&&tk.checkInDate?new Date(tk.checkInDate).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''}</div></div>
+        </div>
+      </div>
+      ${tk.address?`<div class="modal-section"><div class="section-label">📍 Endereço</div><div class="desc-box">${tk.address}</div></div>`:''}
+      ${tk.orientation?`<div class="modal-section"><div class="section-label">📋 Orientação</div><div class="desc-box" style="max-height:160px;">${tk.orientation.replace(/
+/g,'<br>')}</div></div>`:''}
+      ${tk.report?`<div class="modal-section"><div class="section-label">📄 Relatório</div><div class="desc-box">${tk.report}</div></div>`:''}
+      ${tk.taskUrl?`<div class="modal-section"><a href="${tk.taskUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:700;color:var(--brand);text-decoration:none;">🔗 Abrir tarefa no Auvo</a></div>`:''}
+    `;
+  } catch(err) {
+    body.innerHTML=`<div class="modal-alert">❌ ${err.message}</div>`;
+  }
+}
+function closeTaskDetail(){
+  document.getElementById('task-detail-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
 
 // ══ RENDER TICKETS ══
 function renderTickets(tickets){
@@ -906,7 +978,7 @@ function openTaskModal(){
 }
 function closeTaskModal(e){if(e.target===document.getElementById('task-modal-overlay'))closeTaskModalDirect();}
 function closeTaskModalDirect(){document.getElementById('task-modal-overlay').classList.remove('open');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTaskModalDirect();closeModalDirect();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTaskDetail();closeTaskModalDirect();closeModalDirect();}});
 
 // ══ SUBMIT TAREFA ══
 async function submitTask(){
