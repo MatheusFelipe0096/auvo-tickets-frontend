@@ -448,13 +448,16 @@
           <input class="form-input" id="task-data" type="datetime-local"/>
         </div>
         <div class="form-group" style="margin-bottom:0;">
-          <div class="form-label">Equipe</div>
-          <select class="form-select" id="task-equipe-fallback"><option value="">Sem equipe</option></select>
+          <div class="form-label">Colaborador para execução</div>
+          <div id="task-colaborador-display" style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-height:40px;">
+            <div id="task-colab-avatar" class="avatar" style="width:26px;height:26px;font-size:.62rem;flex-shrink:0;">?</div>
+            <span id="task-colab-nome" style="font-size:.82rem;color:var(--text-muted);font-weight:500;">Selecione um colaborador</span>
+          </div>
         </div>
       </div>
       <div class="form-divider"></div>
       <div class="form-group">
-        <div class="form-label">Descrição <span class="req">*</span></div>
+        <div class="form-label">Descrição do Cliente <span class="req">*</span></div>
         <textarea class="form-textarea" id="task-descricao" placeholder="Descreva o que deve ser feito nesta tarefa..."></textarea>
       </div>
       <div class="form-group">
@@ -492,6 +495,7 @@ let currentTicket = null;
 let currentView   = 'grid';
 // taskIDs criadas localmente nesta sessão { ticketId → [taskId,...] }
 let localTaskMap  = {};
+let localTaskColaborador = {}; // { taskId → nomeColaborador }
 let cachedUsers     = null;
 let cachedTaskTypes = null;
 
@@ -546,6 +550,17 @@ function populateUsersSelect(users) {
     sel.appendChild(opt);
   });
   sel.disabled=false; hint.textContent=`${users.length} colaboradores`;
+  sel.onchange=function(){
+    const nome=this.options[this.selectedIndex]?.text||'';
+    const nomeDisp=nome==='Selecione um colaborador'?'':nome;
+    const av=document.getElementById('task-colab-avatar');
+    const nm=document.getElementById('task-colab-nome');
+    if(av&&nm){
+      av.textContent=nomeDisp?nomeDisp.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase():'?';
+      nm.textContent=nomeDisp||'Selecione um colaborador';
+      nm.style.color=nomeDisp?'var(--text)':'var(--text-muted)';
+    }
+  };
 }
 
 // ══ TASK TYPES ══
@@ -674,7 +689,11 @@ function getTaskIDs(t){
 function taskBadgesHTML(t,cls='task-badge'){
   const ids=getTaskIDs(t);
   if(!ids.length)return'';
-  return ids.map(id=>`<span class="${cls}" onclick="event.stopPropagation();showTaskInfo(${id})"># ${id}</span>`).join('');
+  return ids.map(id=>{
+    const nome=localTaskColaborador[id]||'';
+    const colab=nome?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:3px;">👤 ${nome}</span>`:'';
+    return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="${cls}" onclick="showTaskInfo(${id})"># ${id}</span>${colab}</span>`;
+  }).join('');
 }
 function showTaskInfo(taskId){showToast(`Tarefa #${taskId}`, 'info');}
 
@@ -753,7 +772,7 @@ function renderList(tickets,container){
       <td><span class="status-chip">${t.statusDescription||'—'}</span></td>
       <td class="table-date">${fmtDate(t.creationDate)}</td>
       <td class="table-date">${t.endDate?fmtDate(t.endDate):'00/00/0000'}</td>
-      <td><div class="table-tasks" onclick="event.stopPropagation()">${ids.map(id=>`<span class="task-badge" onclick="showTaskInfo(${id})">#${id}</span>`).join('')||'<span style="color:var(--text-muted);font-size:.7rem;">—</span>'}</div></td>`;
+      <td><div class="table-tasks" onclick="event.stopPropagation()">${ids.map(id=>{const n=localTaskColaborador[id]||'';const c=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">👤 ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="showTaskInfo(${id})">#${id}</span>${c}</span>`;}).join('')||'<span style="color:var(--text-muted);font-size:.7rem;">—</span>'}</div></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -785,7 +804,7 @@ function renderKanban(tickets,container){
       card.innerHTML=`
         <div class="kcard-id">#${t.id} <span style="font-weight:500;color:var(--text-muted);font-size:.66rem;">${t.customerName||''}</span></div>
         <div class="kcard-title">${t.title||'Sem título'}</div>
-        ${ids.length?`<div class="kcard-tasks" onclick="event.stopPropagation()">${ids.map(id=>`<span class="task-badge" onclick="showTaskInfo(${id})">#${id}</span>`).join('')}</div>`:''}
+        ${ids.length?`<div class="kcard-tasks" onclick="event.stopPropagation()">${ids.map(id=>{const n=localTaskColaborador[id]||'';const c=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">👤 ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="showTaskInfo(${id})">#${id}</span>${c}</span>`;}).join('')}</div>`:''}
         <div class="kcard-footer">
           <div class="kcard-assignee"><div class="kcard-av">${initials(t.userResponsableName)}</div>${t.userResponsableName||'—'}</div>
           <span class="kcard-date">${fmtDate(t.creationDate)}</span>
@@ -893,7 +912,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTaskModalDirec
 async function submitTask(){
   const t=currentTicket;if(!t)return;
   const titulo=document.getElementById('task-titulo').value.trim();
-  const colaborador=document.getElementById('task-colaborador').value;
+  const colaboradorSel=document.getElementById('task-colaborador');
+  const colaborador=colaboradorSel.value;
+  const colaboradorNome=colaboradorSel.options[colaboradorSel.selectedIndex]?.text||'';
   const tipo=document.getElementById('task-tipo').value;
   const data=document.getElementById('task-data').value;
   const descricao=document.getElementById('task-descricao').value.trim();
@@ -902,14 +923,15 @@ async function submitTask(){
   if(!colaborador){showToast('⚠ Selecione o Colaborador.','error');return;}
   if(!tipo){showToast('⚠ Selecione o Tipo.','error');return;}
   if(!data){showToast('⚠ Informe a Data.','error');return;}
-  if(!descricao){showToast('⚠ Preencha a Descrição.','error');return;}
+  if(!descricao){showToast('⚠ Preencha a Descrição do Cliente.','error');return;}
 
   const prioMap={alta:'3',media:'2',baixa:'1',normal:'1'};
   const taskDateFmt=data.length===16?data+':00':data.slice(0,19);
   const parts=[];
   if(titulo)parts.push(titulo);
-  if(descricao)parts.push(descricao);
-  if(orientacao)parts.push('Orientação: '+orientacao);
+  if(colaboradorNome)parts.push('Colaborador Responsável: '+colaboradorNome);
+  if(descricao)parts.push('Descrição do Cliente: '+descricao);
+  if(orientacao)parts.push('Orientação ao Colaborador: '+orientacao);
 
   const payload={
     idUserTo:parseInt(colaborador),idUserFrom:parseInt(colaborador),
@@ -933,6 +955,7 @@ async function submitTask(){
     if(taskId){
       if(!localTaskMap[t.id])localTaskMap[t.id]=[];
       localTaskMap[t.id].push(taskId);
+      if(colaboradorNome)localTaskColaborador[taskId]=colaboradorNome;
       updateCardTasks(t.id);
       // Atualiza modal se aberto
       const tasksList=document.getElementById('modal-tasks-list');
@@ -968,7 +991,7 @@ function updateCardTasks(ticketId){
     const isKanban=card.classList.contains('kanban-card');
     const tasksCls=isKanban?'kcard-tasks':'card-tasks';
     let tasksDiv=card.querySelector(`.${tasksCls}`);
-    const badgeHtml=ids.map(id=>`<span class="task-badge" onclick="event.stopPropagation();showTaskInfo(${id})"># ${id}</span>`).join('');
+    const badgeHtml=ids.map(id=>{const n=localTaskColaborador[id]||'';const c=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">👤 ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="event.stopPropagation();showTaskInfo(${id})"># ${id}</span>${c}</span>`;}).join('');
     if(tasksDiv){tasksDiv.innerHTML=badgeHtml;}
     else{
       const footer=card.querySelector('.card-footer,.kcard-footer');
@@ -977,7 +1000,7 @@ function updateCardTasks(ticketId){
   });
   // Table row
   const tr=document.querySelector(`tr[data-ticket-id="${ticketId}"]`);
-  if(tr){const td=tr.querySelector('.table-tasks');if(td)td.innerHTML=ids.map(id=>`<span class="task-badge" onclick="event.stopPropagation();showTaskInfo(${id})">#${id}</span>`).join('');}
+  if(tr){const td=tr.querySelector('.table-tasks');if(td)td.innerHTML=ids.map(id=>{const n=localTaskColaborador[id]||'';const c=n?`<span style="font-size:.58rem;color:var(--text-muted);font-weight:600;margin-left:2px;">👤 ${n}</span>`:'';return `<span style="display:inline-flex;align-items:center;gap:2px;" onclick="event.stopPropagation()"><span class="task-badge" onclick="event.stopPropagation();showTaskInfo(${id})">#${id}</span>${c}</span>`;}).join('');}
 }
 
 // ══ HELPERS UI ══
