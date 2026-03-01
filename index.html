@@ -722,8 +722,13 @@ async function showTaskInfo(taskId,evt){
   document.body.style.overflow='hidden';
   try {
     const res=await fetch(`${BASE_API}/api/tasks/${taskId}`);
-    const data=await res.json();
-    if(!res.ok)throw new Error(data.error||`Erro ${res.status}`);
+    let data;
+    try { data=await res.json(); } catch(e){ data={}; }
+    console.log('[showTaskInfo] status:', res.status, 'body:', data);
+    if(!res.ok){
+      const msg=data?.error||data?.message||(data?.errors?JSON.stringify(data.errors):null)||`Erro ${res.status}`;
+      throw new Error(msg);
+    }
     const tk=data?.result||data;
     titleEl.textContent=tk.taskTypeDescription||'Tarefa';
     const statusLabel=tk.finished?'✅ Concluída':tk.checkIn&&!tk.checkOut?'🔄 Em andamento':'⏳ Pendente';
